@@ -1,0 +1,8 @@
+fastapi
+uvicorn[standard]
+python-multipart
+pillow
+requests
+onnxruntime
+numpy
+python-dotenv
