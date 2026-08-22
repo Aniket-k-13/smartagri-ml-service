@@ -81,20 +81,9 @@ logger.info("CORS allowed origins: %s", _allowed_origins)
 # ── Supported crops ───────────────────────────────────────────────────────────
 _SUPPORTED_CROPS = {"soybean", "chilli", "groundnut"}
 
-# ── Hardcoded disease_type map (placeholder — expand after training) ──────────
-# Map health_label → disease_type for the response.
-# Once inference.py is returning real labels, move this into inference.py
-# alongside _CLASS_LABELS so label + type stay co-located.
-_DISEASE_TYPE_MAP: dict[str, str] = {
-    "Healthy": "none",
-    "Early Blight": "fungal",
-    "Late Blight": "fungal",
-    "Leaf Spot": "fungal",
-    "Bacterial Blight": "bacterial",
-    "Mosaic Virus": "viral",
-    # TODO: extend this map once training labels are finalised
-}
-_DEFAULT_DISEASE_TYPE = "unknown"
+# disease_type is now returned directly from predict_image() alongside the label.
+# It is stored in inference.py's _CLASS_LABELS map, co-located with label names.
+# No separate lookup table is needed here.
 
 
 # ── Response schema ───────────────────────────────────────────────────────────
@@ -296,8 +285,7 @@ async def predict(
 
     # ── Step 1: Crop health inference ─────────────────────────────────────────
     logger.info("Running inference for crop='%s', file='%s'", crop_lower, image.filename)
-    health_label, confidence = predict_image(image_bytes, crop_lower)
-    disease_type = _DISEASE_TYPE_MAP.get(health_label, _DEFAULT_DISEASE_TYPE)
+    health_label, disease_type, confidence = predict_image(image_bytes, crop_lower)
 
     # ── Step 2: Weather timing flag ───────────────────────────────────────────
     logger.info("Checking weather at (%.4f, %.4f)", lat, lng)

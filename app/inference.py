@@ -15,13 +15,18 @@ activates automatically on the next server restart.
 
 Supported crops: soybean, chilli, groundnut
 Model file paths: models/<crop>_model.onnx
+
+⚠️  ONNX export note:
+    Models must be exported as a single self-contained .onnx file.
+    Do NOT use save_as_external_data=True when exporting — that splits weights
+    into a separate .data file which this loader cannot find at runtime.
+    See models/README.md for the correct export snippet.
 """
 
 from __future__ import annotations
 
 import io
 import logging
-import os
 from pathlib import Path
 from typing import Optional
 
@@ -37,7 +42,43 @@ _SUPPORTED_CROPS = ("soybean", "chilli", "groundnut")
 
 # ── Stub fallback values (used when no model file is present) ─────────────────
 _STUB_LABEL = "Healthy"
+_STUB_DISEASE_TYPE = "none"
 _STUB_CONFIDENCE = 0.95
+
+# ── Per-crop class label maps ─────────────────────────────────────────────────
+# Format: { crop: { output_index: ("Label Name", "disease_type") } }
+# disease_type values: "fungal" | "bacterial" | "viral" | "nutrient" | "none"
+#
+# Index order matches model output — do NOT reorder.
+# soybean intentionally supports 8 classes (4 dropped from original dataset:
+#   2 for insufficient data, 2 for background artifacts in source images).
+_CLASS_LABELS: dict[str, dict[int, tuple[str, str]]] = {
+    "chilli": {
+        0: ("Bacterial Spot",        "bacterial"),
+        1: ("Cercospora Leaf Spot",  "fungal"),
+        2: ("Curl Virus",            "viral"),
+        3: ("Healthy",               "none"),
+        4: ("Nutrition Deficiency",  "nutrient"),
+        5: ("Powdery Mildew",        "fungal"),
+    },
+    "groundnut": {
+        0: ("Early Leaf Spot",       "fungal"),
+        1: ("Healthy",               "none"),
+        2: ("Late Leaf Spot",        "fungal"),
+        3: ("Nutrition Deficiency",  "nutrient"),
+        4: ("Rust",                  "fungal"),
+    },
+    "soybean": {
+        0: ("Bacterial Pustule",       "bacterial"),
+        1: ("Frogeye Leaf Spot",       "fungal"),
+        2: ("Healthy",                 "none"),
+        3: ("Rust",                    "fungal"),
+        4: ("Sudden Death Syndrome",   "fungal"),
+        5: ("Target Leaf Spot",        "fungal"),
+        6: ("Yellow Mosaic",           "viral"),
+        7: ("Ferrugen",                "fungal"),
+    },
+}
 
 # ── Per-crop ONNX session registry ────────────────────────────────────────────
 # Populated at startup; value is None if the model file was not found.
@@ -46,8 +87,8 @@ _sessions: dict[str, Optional[object]] = {}
 
 def _load_all_models() -> None:
     """
-    Called once at module import.  Tries to load an onnxruntime.InferenceSession
-    for each crop.  Missing files are logged and stored as None (stub mode).
+    Called once at module import. Tries to load an onnxruntime.InferenceSession
+    for each crop. Missing files are logged and stored as None (stub mode).
     """
     for crop in _SUPPORTED_CROPS:
         model_path = _MODELS_DIR / f"{crop}_model.onnx"
@@ -63,7 +104,9 @@ def _load_all_models() -> None:
                 logger.info("Loaded ONNX model for crop '%s' from %s", crop, model_path)
             except Exception as exc:  # noqa: BLE001
                 logger.error(
-                    "Failed to load ONNX model for crop '%s': %s — falling back to stub.",
+                    "Failed to load ONNX model for crop '%s': %s\n"
+                    "  → If the error mentions a missing .data file, re-export the model\n"
+                    "    without external data (see models/README.md). Falling back to stub.",
                     crop,
                     exc,
                 )
@@ -81,57 +124,39 @@ def _load_all_models() -> None:
 _load_all_models()
 
 
-# ── ⚠️  PREPROCESSING CONTRACT ────────────────────────────────────────────────
-#  The block below is the ONE place where preprocessing lives.
-#  It MUST exactly replicate what was done during training (Kaggle/Colab).
-#  Mismatch here causes silent wrong predictions — no error, just bad output.
-#
-#  Before filling this in, document your training pipeline:
-#    - Input image size (e.g. 224×224)
-#    - Normalization: mean=[R,G,B], std=[R,G,B]  (ImageNet: [0.485,0.456,0.406] / [0.229,0.224,0.225])
-#    - Channel order: RGB (PIL default) or BGR (OpenCV default)?
-#    - Any augmentation applied at inference? (usually none — only at train time)
-#
-# TODO: Update _IMAGE_SIZE, _MEAN, _STD and the preprocess() function body
-#       to match your training notebook before switching to real inference.
-# ─────────────────────────────────────────────────────────────────────────────
+# ── Preprocessing ─────────────────────────────────────────────────────────────
+# Pipeline (must exactly match training):
+#   1. Open image → convert to RGB
+#   2. Resize to 224 × 224 using BILINEAR interpolation
+#   3. uint8 [0,255] → float32 [0.0, 1.0]
+#   4. Normalize with ImageNet mean/std (per channel, RGB order)
+#   5. Transpose HWC → CHW  (PyTorch / ONNX convention)
+#   6. Add batch dimension: [C,H,W] → [1,C,H,W]
 
-_IMAGE_SIZE: tuple[int, int] = (224, 224)   # TODO: confirm from training notebook
-_MEAN = np.array([0.485, 0.456, 0.406], dtype=np.float32)  # TODO: confirm
-_STD = np.array([0.229, 0.224, 0.225], dtype=np.float32)   # TODO: confirm
-
-# TODO: fill in class label map after training is done.
-# Format: {output_index: ("Label Name", "disease_type")}
-# disease_type should be one of: "fungal", "bacterial", "viral", "none"
-_CLASS_LABELS: dict[int, tuple[str, str]] = {
-    # 0: ("Healthy", "none"),
-    # 1: ("Early Blight", "fungal"),
-    # 2: ("Late Blight", "fungal"),
-    # ... add your actual classes here
-}
+_IMAGE_SIZE: tuple[int, int] = (224, 224)
+_MEAN = np.array([0.485, 0.456, 0.406], dtype=np.float32)
+_STD  = np.array([0.229, 0.224, 0.225], dtype=np.float32)
 
 
 def _preprocess(image_bytes: bytes) -> np.ndarray:
-    """
-    Convert raw image bytes → normalised float32 numpy array for ONNX input.
-
-    TODO: Verify this matches your training preprocessing exactly.
-          Common pitfalls:
-            • Wrong resize method (BILINEAR vs NEAREST)
-            • Forgetting channel-last → channel-first transpose (NHWC vs NCHW)
-            • Normalization applied before or after uint8→float32 conversion
-    """
+    """Convert raw image bytes → normalised float32 tensor [1, 3, 224, 224]."""
     img = Image.open(io.BytesIO(image_bytes)).convert("RGB")
-    img = img.resize(_IMAGE_SIZE, Image.BILINEAR)  # TODO: confirm resize interpolation
+    img = img.resize(_IMAGE_SIZE, Image.BILINEAR)
 
-    arr = np.array(img, dtype=np.float32) / 255.0  # [H, W, C] in [0,1]
-    arr = (arr - _MEAN) / _STD                      # normalize
-    arr = arr.transpose(2, 0, 1)                    # [C, H, W]  ← ONNX/PyTorch convention
-    arr = arr[np.newaxis, ...]                      # [1, C, H, W] — batch dimension
+    arr = np.array(img, dtype=np.float32) / 255.0   # [H, W, C] in [0, 1]
+    arr = (arr - _MEAN) / _STD                        # ImageNet normalisation
+    arr = arr.transpose(2, 0, 1)                      # [C, H, W]
+    arr = arr[np.newaxis, ...]                        # [1, C, H, W]
     return arr.astype(np.float32)
 
 
-def predict_image(image_bytes: bytes, crop: str) -> tuple[str, float]:
+def _softmax(x: np.ndarray) -> np.ndarray:
+    """Numerically stable softmax over a 1-D logit array."""
+    e = np.exp(x - np.max(x))
+    return e / e.sum()
+
+
+def predict_image(image_bytes: bytes, crop: str) -> tuple[str, str, float]:
     """
     Run inference on the supplied image bytes for the given crop.
 
@@ -144,45 +169,42 @@ def predict_image(image_bytes: bytes, crop: str) -> tuple[str, float]:
 
     Returns
     -------
-    (label, confidence) : tuple[str, float]
-        label      — the predicted health/disease class name
-        confidence — model confidence in [0.0, 1.0]
+    (label, disease_type, confidence) : tuple[str, str, float]
+        label        — predicted health/disease class name
+        disease_type — "fungal" | "bacterial" | "viral" | "nutrient" | "none"
+        confidence   — model confidence in [0.0, 1.0] after softmax
 
-    Stub behaviour (no model file present):
-        Returns (_STUB_LABEL, _STUB_CONFIDENCE) immediately.
+    Stub behaviour (no model file / failed to load):
+        Returns (_STUB_LABEL, _STUB_DISEASE_TYPE, _STUB_CONFIDENCE).
     """
     if crop not in _SUPPORTED_CROPS:
         logger.warning("Unknown crop '%s' — falling back to stub output.", crop)
-        return _STUB_LABEL, _STUB_CONFIDENCE
+        return _STUB_LABEL, _STUB_DISEASE_TYPE, _STUB_CONFIDENCE
 
     session = _sessions.get(crop)
 
     if session is None:
         # ── STUB MODE ─────────────────────────────────────────────────────────
-        # Model file is not present yet.  Return hardcoded values so the
-        # endpoint is fully testable before training is complete.
+        # Model file is absent or failed to load.
+        # Returns hardcoded values so /predict is fully testable without a model.
         logger.debug("Stub mode active for crop '%s'.", crop)
-        return _STUB_LABEL, _STUB_CONFIDENCE
+        return _STUB_LABEL, _STUB_DISEASE_TYPE, _STUB_CONFIDENCE
 
     # ── REAL INFERENCE MODE ───────────────────────────────────────────────────
-    # TODO: Fill in the preprocessing + ONNX run block below once your training
-    #       pipeline is finalised and your .onnx file is in models/.
-    #
-    # Steps to implement:
-    #   1.  input_tensor = _preprocess(image_bytes)
-    #   2.  input_name   = session.get_inputs()[0].name
-    #   3.  outputs      = session.run(None, {input_name: input_tensor})
-    #   4.  logits       = outputs[0][0]               # shape: [num_classes]
-    #   5.  Apply softmax if your model outputs raw logits (not already softmax)
-    #   6.  predicted_idx = int(np.argmax(logits))
-    #   7.  confidence    = float(logits[predicted_idx]) after softmax
-    #   8.  label, disease_type = _CLASS_LABELS.get(predicted_idx, ("Unknown", "none"))
-    #   9.  Return (label, confidence)
-    #
-    # ⚠️  Remember: _CLASS_LABELS must be filled in above to match training labels.
-    # ⚠️  Remember: _preprocess() must match training preprocessing exactly.
+    input_tensor = _preprocess(image_bytes)                    # [1, 3, 224, 224]
+    input_name   = session.get_inputs()[0].name
+    outputs      = session.run(None, {input_name: input_tensor})
+    logits       = outputs[0][0]                               # [num_classes]
 
-    raise NotImplementedError(
-        f"Real inference not yet implemented for crop '{crop}'. "
-        "Fill in the TODO block in app/inference.py after training is complete."
+    probs        = _softmax(logits)                            # softmax → probabilities
+    predicted_idx = int(np.argmax(probs))
+    confidence    = float(probs[predicted_idx])
+
+    crop_labels = _CLASS_LABELS.get(crop, {})
+    label, disease_type = crop_labels.get(predicted_idx, ("Unknown", "none"))
+
+    logger.info(
+        "Inference result for crop='%s': idx=%d label='%s' type='%s' conf=%.4f",
+        crop, predicted_idx, label, disease_type, confidence,
     )
+    return label, disease_type, confidence
