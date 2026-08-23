@@ -14,7 +14,7 @@ build/
 .env
 
 # Model weights — large binary files, add via Git LFS or download at runtime
-models/*.onnx
+# models/*.onnx (tracked via LFS)
 models/*.pt
 models/*.h5
 
