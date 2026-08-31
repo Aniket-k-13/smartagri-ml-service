@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SmartAgri ML Dashboard</title>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <style>
+    body { background-color: #f3f4f6; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    .loader { border: 3px solid #f3f3f3; border-top: 3px solid #10b981; border-radius: 50%; width: 24px; height: 24px; animation: spin 1s linear infinite; }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+  </style>
+</head>
+<body class="text-gray-800">
+  <div class="max-w-4xl mx-auto py-10 px-4">
+    <div class="flex items-center justify-between mb-8">
+      <div>
+        <h1 class="text-3xl font-bold text-green-700">🌱 SmartAgri ML Dashboard</h1>
+        <p class="text-gray-500 mt-1">Test the prediction API directly from your browser.</p>
+      </div>
+      <a href="/docs" class="text-sm bg-gray-200 hover:bg-gray-300 text-gray-700 py-2 px-4 rounded-lg font-medium transition">API Docs</a>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-6">
+      <form id="predict-form" class="space-y-6">
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <!-- Left Column -->
+          <div class="space-y-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">API Key</label>
+              <input type="password" id="apiKey" value="local_dev_secret_key_12345" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-green-500 outline-none">
+            </div>
+            
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Crop</label>
+              <select id="crop" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-green-500 outline-none">
+                <option value="chilli">Chilli</option>
+                <option value="soybean">Soybean</option>
+                <option value="groundnut">Groundnut</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Leaf Image</label>
+              <input type="file" id="image" accept="image/jpeg, image/png" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-green-500 outline-none">
+            </div>
+            
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Base Schedule (JSON)</label>
+              <textarea id="base_schedule" rows="3" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-green-500 outline-none font-mono text-sm">[{"product": "Agri Gold", "dosage": "20grm"}]</textarea>
+            </div>
+          </div>
+
+          <!-- Right Column -->
+          <div class="space-y-4">
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Lat</label>
+                <input type="number" step="any" id="lat" value="18.5204" class="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none">
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Lng</label>
+                <input type="number" step="any" id="lng" value="73.8567" class="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none">
+              </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">pH</label>
+                <input type="number" step="any" id="ph" value="6.5" class="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none">
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Nitrogen (N)</label>
+                <input type="number" step="any" id="n" value="45" class="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none">
+              </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Phosphorus (P)</label>
+                <input type="number" step="any" id="p" value="20" class="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none">
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Potassium (K)</label>
+                <input type="number" step="any" id="k" value="30" class="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none">
+              </div>
+            </div>
+            
+            <div class="pt-4">
+              <button type="submit" class="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-4 rounded-lg transition flex items-center justify-center gap-2">
+                <span>Run Prediction</span>
+                <div id="loading" class="loader hidden"></div>
+              </button>
+            </div>
+          </div>
+        </div>
+      </form>
+    </div>
+
+    <!-- Results Area -->
+    <div id="error-box" class="hidden bg-red-50 border border-red-200 text-red-700 rounded-lg p-4 mb-6 whitespace-pre-wrap font-mono text-sm"></div>
+    
+    <div id="result-box" class="hidden bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+      <h2 class="text-xl font-bold text-gray-800 mb-4 border-b pb-2">Prediction Results</h2>
+      
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <div class="bg-gray-50 p-4 rounded-lg">
+          <div class="text-xs text-gray-500 uppercase tracking-wide font-semibold mb-1">Health Label</div>
+          <div id="res-label" class="text-lg font-bold text-green-700"></div>
+        </div>
+        <div class="bg-gray-50 p-4 rounded-lg">
+          <div class="text-xs text-gray-500 uppercase tracking-wide font-semibold mb-1">Confidence</div>
+          <div id="res-conf" class="text-lg font-bold text-gray-800"></div>
+        </div>
+        <div class="bg-gray-50 p-4 rounded-lg">
+          <div class="text-xs text-gray-500 uppercase tracking-wide font-semibold mb-1">Timing Flag</div>
+          <div id="res-timing" class="text-lg font-bold text-gray-800"></div>
+        </div>
+        <div class="bg-gray-50 p-4 rounded-lg">
+          <div class="text-xs text-gray-500 uppercase tracking-wide font-semibold mb-1">Dosage Factor</div>
+          <div id="res-dosage" class="text-lg font-bold text-gray-800"></div>
+        </div>
+      </div>
+      
+      <div class="bg-blue-50 border border-blue-100 rounded-lg p-5">
+        <div class="text-xs text-blue-500 uppercase tracking-wide font-semibold mb-2">Final Recommendation</div>
+        <div id="res-rec" class="text-gray-800 text-lg leading-relaxed"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    document.getElementById('predict-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const btnText = document.querySelector('button span');
+      const loader = document.getElementById('loading');
+      const errBox = document.getElementById('error-box');
+      const resBox = document.getElementById('result-box');
+      
+      btnText.textContent = 'Processing...';
+      loader.classList.remove('hidden');
+      errBox.classList.add('hidden');
+      resBox.classList.add('hidden');
+
+      try {
+        const formData = new FormData();
+        formData.append('crop', document.getElementById('crop').value);
+        formData.append('image', document.getElementById('image').files[0]);
+        formData.append('lat', document.getElementById('lat').value);
+        formData.append('lng', document.getElementById('lng').value);
+        formData.append('ph', document.getElementById('ph').value);
+        formData.append('n', document.getElementById('n').value);
+        formData.append('p', document.getElementById('p').value);
+        formData.append('k', document.getElementById('k').value);
+        formData.append('base_schedule', document.getElementById('base_schedule').value);
+
+        const response = await fetch('/predict', {
+          method: 'POST',
+          headers: {
+            'X-API-Key': document.getElementById('apiKey').value
+          },
+          body: formData
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(JSON.stringify(data, null, 2));
+        }
+
+        document.getElementById('res-label').textContent = data.health_label + (data.disease_type !== 'none' ? ` (${data.disease_type})` : '');
+        document.getElementById('res-conf').textContent = (data.confidence * 100).toFixed(1) + '%';
+        document.getElementById('res-timing').textContent = data.timing_flag;
+        document.getElementById('res-dosage').textContent = data.dosage_factor + 'x';
+        document.getElementById('res-rec').textContent = data.final_recommendation;
+        
+        resBox.classList.remove('hidden');
+      } catch (err) {
+        errBox.textContent = err.message;
+        errBox.classList.remove('hidden');
+      } finally {
+        btnText.textContent = 'Run Prediction';
+        loader.classList.add('hidden');
+      }
+    });
+  </script>
+</body>
+</html>

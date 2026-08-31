@@ -27,7 +27,7 @@ from typing import Annotated
 
 from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, File, Form, HTTPException, UploadFile, status
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
@@ -97,119 +97,10 @@ class PredictResponse(BaseModel):
 
 
 # ── / root endpoint ──────────────────────────────────────────────────────────
-@app.get("/", tags=["Meta"], response_class=HTMLResponse, include_in_schema=False)
+@app.get("/", tags=["Meta"], response_class=FileResponse, include_in_schema=False)
 async def root():
-    """Landing page — links to docs and health check."""
-    return """
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>SmartAgri ML Service</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
-  <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-      font-family: 'Inter', sans-serif;
-      background: linear-gradient(135deg, #0f1b10 0%, #1a2e1b 50%, #0d1f2d 100%);
-      min-height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: #e8f5e9;
-    }
-    .card {
-      background: rgba(255,255,255,0.05);
-      backdrop-filter: blur(20px);
-      border: 1px solid rgba(76,175,80,0.25);
-      border-radius: 20px;
-      padding: 48px 52px;
-      max-width: 560px;
-      width: 90%;
-      box-shadow: 0 24px 80px rgba(0,0,0,0.5);
-      text-align: center;
-    }
-    .badge {
-      display: inline-block;
-      background: linear-gradient(90deg, #2e7d32, #43a047);
-      color: #fff;
-      font-size: 11px;
-      font-weight: 600;
-      letter-spacing: 1.5px;
-      text-transform: uppercase;
-      padding: 4px 14px;
-      border-radius: 100px;
-      margin-bottom: 20px;
-    }
-    h1 {
-      font-size: 2rem;
-      font-weight: 700;
-      background: linear-gradient(90deg, #81c784, #a5d6a7);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-      margin-bottom: 10px;
-      line-height: 1.2;
-    }
-    .sub {
-      color: #a5d6a7;
-      font-size: 0.95rem;
-      font-weight: 300;
-      margin-bottom: 36px;
-      line-height: 1.6;
-    }
-    .links {
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-    }
-    a.btn {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 14px 20px;
-      border-radius: 12px;
-      text-decoration: none;
-      font-size: 0.9rem;
-      font-weight: 500;
-      transition: transform 0.2s ease, box-shadow 0.2s ease;
-    }
-    a.btn:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.3); }
-    a.btn .icon { font-size: 1.2rem; }
-    a.btn .arrow { opacity: 0.6; }
-    .btn-primary { background: linear-gradient(90deg, #2e7d32, #388e3c); color: #fff; }
-    .btn-secondary { background: rgba(255,255,255,0.07); color: #c8e6c9; border: 1px solid rgba(255,255,255,0.1); }
-    .status { margin-top: 32px; font-size: 0.78rem; color: #66bb6a; opacity: 0.7; }
-    .dot { display: inline-block; width: 8px; height: 8px; background: #66bb6a; border-radius: 50%; margin-right: 6px; animation: pulse 2s infinite; }
-    @keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:0.3;} }
-  </style>
-</head>
-<body>
-  <div class="card">
-    <div class="badge">🌱 SmartAgri</div>
-    <h1>ML Service</h1>
-    <p class="sub">Crop health classification &amp; spray recommendation<br>microservice for SmartAgri Advisor.</p>
-    <div class="links">
-      <a href="/docs" class="btn btn-primary">
-        <span><span class="icon">📖</span>&nbsp; Interactive API Docs (Swagger)</span>
-        <span class="arrow">→</span>
-      </a>
-      <a href="/redoc" class="btn btn-secondary">
-        <span><span class="icon">📄</span>&nbsp; ReDoc Reference</span>
-        <span class="arrow">→</span>
-      </a>
-      <a href="/health" class="btn btn-secondary">
-        <span><span class="icon">💚</span>&nbsp; Health Check</span>
-        <span class="arrow">→</span>
-      </a>
-    </div>
-    <p class="status"><span class="dot"></span>Service is running &bull; v0.1.0</p>
-  </div>
-</body>
-</html>
-"""
+    """Landing page / Interactive Dashboard"""
+    return FileResponse("dashboard.html")
 
 
 # ── /health endpoint ──────────────────────────────────────────────────────────
