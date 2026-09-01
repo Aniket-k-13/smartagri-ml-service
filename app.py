@@ -1,7 +1,7 @@
 import gradio as gr
 import spaces
 import json
-from backend.main import app as fastapi_app
+
 from backend.inference import predict_image
 from backend.weather import get_timing_flag
 from backend.soil import get_dosage_factor
@@ -58,6 +58,5 @@ demo = gr.Interface(
 )
 
 # Mount the entire Gradio app at the root ("/") of our FastAPI app!
-# Because our FastAPI app has specific routes (/predict, /health, /docs), Starlette will automatically route API requests to FastAPI, 
-# and send any browser visits to the Gradio dashboard!
-app = gr.mount_gradio_app(fastapi_app, demo, path="/")
+# NOTE: ZeroGPU spaces do not support FastAPI. We must use pure Gradio.
+demo.launch()
