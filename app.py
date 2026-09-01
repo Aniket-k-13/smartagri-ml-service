@@ -1,11 +1,11 @@
 import gradio as gr
 import spaces
 import json
-from app.main import app as fastapi_app
-from app.inference import predict_image
-from app.weather import get_timing_flag
-from app.soil import get_dosage_factor
-from app.fusion import build_recommendation
+from backend.main import app as fastapi_app
+from backend.inference import predict_image
+from backend.weather import get_timing_flag
+from backend.soil import get_dosage_factor
+from backend.fusion import build_recommendation
 
 def process_image_gpu(image_bytes, crop_lower):
     return predict_image(image_bytes, crop_lower)

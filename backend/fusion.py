@@ -1,5 +1,5 @@
 """
-app/fusion.py
+backend/fusion.py
 -------------
 Combines all signal sources into a final human-readable recommendation string.
 

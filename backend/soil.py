@@ -1,5 +1,5 @@
 """
-app/soil.py
+backend/soil.py
 -----------
 Rule-based dosage adjustment factor derived from farmer-entered soil values.
 

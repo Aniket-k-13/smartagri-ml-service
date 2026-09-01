@@ -1,5 +1,5 @@
 """
-app/main.py
+backend/main.py
 -----------
 FastAPI application entry point.
 
@@ -31,11 +31,11 @@ from fastapi.responses import HTMLResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-from app.auth import verify_api_key
-from app.fusion import build_recommendation
-from app.inference import predict_image
-from app.soil import get_dosage_factor
-from app.weather import get_timing_flag
+from backend.auth import verify_api_key
+from backend.fusion import build_recommendation
+from backend.inference import predict_image
+from backend.soil import get_dosage_factor
+from backend.weather import get_timing_flag
 
 load_dotenv()
 

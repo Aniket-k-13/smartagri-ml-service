@@ -1,5 +1,5 @@
 """
-app/inference.py
+backend/inference.py
 ----------------
 Loads a trained ONNX model file per crop at module import time (once at
 startup, NOT per request) and exposes a single predict_image() function.

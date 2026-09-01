@@ -1,10 +1,10 @@
 """
-app/auth.py
+backend/auth.py
 -----------
 Simple API-key authentication using FastAPI's Depends mechanism.
 
 Usage (in any route):
-    from app.auth import verify_api_key
+    from backend.auth import verify_api_key
     @app.post("/predict", dependencies=[Depends(verify_api_key)])
 
 The caller must include the header:

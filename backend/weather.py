@@ -1,5 +1,5 @@
 """
-app/weather.py
+backend/weather.py
 --------------
 Calls the OpenWeatherMap free forecast API to decide whether spraying should
 be delayed due to upcoming rain.
