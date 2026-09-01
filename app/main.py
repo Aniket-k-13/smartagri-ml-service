@@ -97,10 +97,7 @@ class PredictResponse(BaseModel):
 
 
 # ── / root endpoint ──────────────────────────────────────────────────────────
-@app.get("/", tags=["Meta"], response_class=FileResponse, include_in_schema=False)
-async def root():
-    """Landing page / Interactive Dashboard"""
-    return FileResponse("dashboard.html")
+
 
 
 # ── /health endpoint ──────────────────────────────────────────────────────────
