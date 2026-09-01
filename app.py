@@ -1,8 +1,14 @@
 import gradio as gr
+import spaces
 from app.main import app as fastapi_app
-import uvicorn
 
-# A minimal Gradio UI to satisfy Hugging Face ZeroGPU requirements
+# Dummy function to satisfy Hugging Face's ZeroGPU requirement!
+# ZeroGPU crashes the container on startup if it doesn't detect this decorator anywhere in the code.
+@spaces.GPU
+def dummy_gpu_fn():
+    pass
+
+# A minimal Gradio UI to satisfy Hugging Face's Gradio SDK
 demo = gr.Blocks()
 with demo:
     gr.Markdown("# 🌱 SmartAgri ML API is Running!")
@@ -10,9 +16,5 @@ with demo:
     gr.Markdown("### ➡️ [Click here to open the API Docs](/docs)")
 
 # Mount the Gradio app onto our FastAPI app at /gradio
+# Hugging Face's SDK will automatically find the 'app' object and serve it using Uvicorn!
 app = gr.mount_gradio_app(fastapi_app, demo, path="/gradio")
-
-# Hugging Face Gradio SDK executes `python app.py`
-# We must start the Uvicorn server ourselves so it doesn't exit!
-if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=7860)
