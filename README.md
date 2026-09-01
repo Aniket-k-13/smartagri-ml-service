@@ -3,7 +3,7 @@ title: Smartagri Ml Service
 emoji: 🌱
 colorFrom: green
 colorTo: green
-sdk: docker
+sdk: gradio
 app_file: app.py
 pinned: false
 ---
