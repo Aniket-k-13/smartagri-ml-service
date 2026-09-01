@@ -1,27 +1,4 @@
-# Python
-__pycache__/
+.venv
+__pycache__
 *.pyc
-*.pyo
-*.pyd
-*.egg-info/
-dist/
-build/
-
-# Virtual environment (project-local)
-.venv/
-
-# Environment / secrets — NEVER commit these
-.env
-
-# Model weights — large binary files, add via Git LFS or download at runtime
-# models/*.onnx (tracked via LFS)
-models/*.pt
-models/*.h5
-
-# IDE
-.vscode/
-.idea/
-
-# OS
 .DS_Store
-Thumbs.db
