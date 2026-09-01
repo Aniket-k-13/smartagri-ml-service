@@ -7,11 +7,10 @@ from app.weather import get_timing_flag
 from app.soil import get_dosage_factor
 from app.fusion import build_recommendation
 
-# Hugging Face ZeroGPU strict requirement: A function with @spaces.GPU must be hooked up to the Gradio UI!
-@spaces.GPU
 def process_image_gpu(image_bytes, crop_lower):
     return predict_image(image_bytes, crop_lower)
 
+@spaces.GPU(duration=15)
 def gradio_predict(image_path, crop, lat, lng, ph, n, p, k, base_schedule_str):
     with open(image_path, "rb") as f:
         image_bytes = f.read()
