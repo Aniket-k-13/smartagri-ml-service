@@ -18,31 +18,43 @@ const EMPTY_FORM = {
 export default function CropStagesPage() {
   const [crops, setCrops] = useState([]);
   const [selectedCropId, setSelectedCropId] = useState("");
-  const [stages, setStages] = useState(null);
+  const [allStages, setAllStages] = useState([]); // ALL stages from backend
+  const [loading, setLoading] = useState(false);
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
 
+  // Load crops once on mount
   useEffect(() => {
     listCrops().then((rows) => {
       setCrops(rows);
-      if (rows.length) setSelectedCropId(rows[0].id);
+      if (rows.length) setSelectedCropId(String(rows[0].id));
     });
   }, []);
 
-  useEffect(() => {
-    if (!selectedCropId) return;
-    setStages(null);
-    listStages({ cropId: Number(selectedCropId) }).then(setStages);
-  }, [selectedCropId]);
-
-  function refresh() {
-    setStages(null);
-    listStages({ cropId: Number(selectedCropId) }).then(setStages);
+  // Load ALL stages once on mount — then filter client-side by selectedCropId
+  // The backend AdminCropStageListView does NOT support ?crop= filter (no DjangoFilterBackend),
+  // only SearchFilter. So we fetch all and filter on the frontend.
+  function refreshAllStages() {
+    setLoading(true);
+    listStages()
+      .then(setAllStages)
+      .finally(() => setLoading(false));
   }
+
+  useEffect(() => {
+    refreshAllStages();
+  }, []);
+
+  // Derived: stages only for the currently selected crop, sorted by order
+  const stages = allStages
+    .filter((s) => String(s.crop) === String(selectedCropId))
+    .sort((a, b) => a.order - b.order);
 
   function openCreate() {
     setForm({ ...EMPTY_FORM, crop: selectedCropId });
+    setError("");
     setEditing({});
   }
 
@@ -56,6 +68,7 @@ export default function CropStagesPage() {
       description: stage.description || "",
       typical_duration_days: stage.typical_duration_days ?? "",
     });
+    setError("");
     setEditing(stage);
   }
 
@@ -66,6 +79,7 @@ export default function CropStagesPage() {
   async function handleSave(e) {
     e.preventDefault();
     setSaving(true);
+    setError("");
     const payload = {
       crop: Number(form.crop),
       name: form.name,
@@ -82,7 +96,18 @@ export default function CropStagesPage() {
         await createStage(payload);
       }
       setEditing(null);
-      refresh();
+      refreshAllStages(); // Reload all stages after save
+    } catch (err) {
+      console.error("Save failed:", err);
+      const backendError = err.response?.data?.error;
+      if (backendError?.code === "VALIDATION_ERROR" && backendError?.details) {
+        const messages = Object.entries(backendError.details)
+          .map(([field, msgs]) => `${field}: ${Array.isArray(msgs) ? msgs.join(" ") : msgs}`)
+          .join("; ");
+        setError(`Validation failed: ${messages}`);
+      } else {
+        setError(backendError?.message || err.message || "An unexpected error occurred.");
+      }
     } finally {
       setSaving(false);
     }
@@ -90,11 +115,16 @@ export default function CropStagesPage() {
 
   async function handleDelete(stage) {
     if (!confirm(`Delete stage "${stage.name}"? This cannot be undone.`)) return;
-    await deleteStage(stage.id);
-    refresh();
+    try {
+      await deleteStage(stage.id);
+      refreshAllStages();
+    } catch (err) {
+      const backendError = err.response?.data?.error;
+      setError(backendError?.message || "Delete failed.");
+    }
   }
 
-  const cropName = crops.find((c) => c.id === Number(selectedCropId))?.name || "";
+  const cropName = crops.find((c) => String(c.id) === String(selectedCropId))?.name || "";
 
   return (
     <>
@@ -102,30 +132,50 @@ export default function CropStagesPage() {
         title="Crop Stages"
         subtitle={
           <>
+            <span className="material-symbols-rounded" style={{ fontSize: 14, opacity: 0.6 }}>timeline</span>
             Growth stages per crop — ordered lifecycle {MOCK_FLAGS.cropStages && <MockNotice />}
           </>
         }
         action={
           <button className="btn btn-primary" onClick={openCreate} disabled={!selectedCropId}>
-            + Add stage
+            <span className="material-symbols-rounded" style={{ fontSize: 17 }}>add</span>
+            Add stage
           </button>
         }
       />
       <div className="page-body">
-        <div className="field" style={{ maxWidth: 280 }}>
-          <label>Crop</label>
-          <select value={selectedCropId} onChange={(e) => setSelectedCropId(e.target.value)}>
+        {/* Crop selector */}
+        <div className="filter-bar" style={{ marginBottom: 20 }}>
+          <label htmlFor="crop-select">Crop</label>
+          <select
+            id="crop-select"
+            value={selectedCropId}
+            onChange={(e) => setSelectedCropId(e.target.value)}
+            style={{ minWidth: 220 }}
+          >
+            {crops.length === 0 && <option value="" disabled>No crops available</option>}
             {crops.map((c) => (
               <option key={c.id} value={c.id}>{c.name}</option>
             ))}
           </select>
+          {cropName && (
+            <span style={{ fontSize: 13, color: "var(--soil)" }}>
+              Showing stages for <strong style={{ color: "var(--canopy)" }}>{cropName}</strong>
+            </span>
+          )}
         </div>
 
         <div className="panel">
-          {stages === null ? (
-            <div className="loading-state">Loading stages…</div>
+          {loading ? (
+            <div className="loading-state">
+              <div className="spinner" />
+              Loading stages…
+            </div>
           ) : stages.length === 0 ? (
-            <div className="empty-state">No stages for {cropName} yet. Add the first one.</div>
+            <div className="empty-state">
+              <span className="material-symbols-rounded empty-state-icon">timeline</span>
+              <p>No stages for <strong>{cropName}</strong> yet. Add the first one to get started.</p>
+            </div>
           ) : (
             <table className="data-table">
               <thead>
@@ -141,11 +191,11 @@ export default function CropStagesPage() {
               <tbody>
                 {stages.map((s) => (
                   <tr key={s.id}>
-                    <td className="mono">{String(s.order).padStart(2, "0")}</td>
+                    <td className="mono" style={{ fontWeight: 700 }}>{String(s.order).padStart(2, "0")}</td>
                     <td>
                       <strong>{s.name}</strong>
                       {s.description && (
-                        <div style={{ color: "var(--soil)", fontSize: 12 }}>{s.description}</div>
+                        <div style={{ color: "var(--soil)", fontSize: 12, marginTop: 2 }}>{s.description}</div>
                       )}
                     </td>
                     <td className="mono">{s.day_start ?? "—"}</td>
@@ -153,8 +203,14 @@ export default function CropStagesPage() {
                     <td className="mono">{s.typical_duration_days ?? "—"}</td>
                     <td>
                       <div className="row-actions">
-                        <button className="link-btn" onClick={() => openEdit(s)}>Edit</button>
-                        <button className="link-btn danger" onClick={() => handleDelete(s)}>Delete</button>
+                        <button className="link-btn" onClick={() => openEdit(s)}>
+                          <span className="material-symbols-rounded" style={{ fontSize: 15 }}>edit</span>
+                          Edit
+                        </button>
+                        <button className="link-btn danger" onClick={() => handleDelete(s)}>
+                          <span className="material-symbols-rounded" style={{ fontSize: 15 }}>delete</span>
+                          Delete
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -168,6 +224,12 @@ export default function CropStagesPage() {
       {editing !== null && (
         <Modal title={editing.id ? "Edit stage" : "Add stage"} onClose={() => setEditing(null)}>
           <form onSubmit={handleSave}>
+            {error && (
+              <div className="form-error">
+                <span className="material-symbols-rounded" style={{ fontSize: 16, flexShrink: 0 }}>error</span>
+                {error}
+              </div>
+            )}
             <div className="field">
               <label>Crop</label>
               <select value={form.crop} onChange={set("crop")} required>
@@ -205,7 +267,12 @@ export default function CropStagesPage() {
             <div className="modal-actions">
               <button type="button" className="btn btn-ghost" onClick={() => setEditing(null)}>Cancel</button>
               <button type="submit" className="btn btn-primary" disabled={saving}>
-                {saving ? "Saving…" : "Save"}
+                {saving ? (
+                  <>
+                    <span className="spinner" style={{ borderTopColor: "#fff", width: 14, height: 14 }} />
+                    Saving…
+                  </>
+                ) : "Save"}
               </button>
             </div>
           </form>

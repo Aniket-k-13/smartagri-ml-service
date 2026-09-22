@@ -1,11 +1,11 @@
 export default function PageHeader({ title, subtitle, action }) {
   return (
     <header className="topbar">
-      <div>
+      <div className="topbar-left">
         <h1>{title}</h1>
         {subtitle && <div className="topbar-sub">{subtitle}</div>}
       </div>
-      {action}
+      {action && <div>{action}</div>}
     </header>
   );
 }

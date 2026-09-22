@@ -9,5 +9,10 @@ export default function StatusBadge({ status }) {
  * Safe to delete once every MOCK_FLAGS entry a screen depends on is false.
  */
 export function MockNotice() {
-  return <span className="mock-notice">mock data</span>;
+  return (
+    <span className="mock-notice">
+      <span className="material-symbols-rounded" style={{ fontSize: 11 }}>data_object</span>
+      mock data
+    </span>
+  );
 }

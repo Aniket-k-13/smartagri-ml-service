@@ -45,16 +45,9 @@ export default function StageProductsPage() {
     listStages().then(setAllStages); // Fetch all stages to map names
   }, []);
 
-  useEffect(() => {
-    if (!selectedCropId) return;
-    // No need to filter stages here, we use allStages for name lookup
-  }, [selectedCropId]);
-
   function refreshMappings() {
     setMappings(null); // Show loading state while refreshing
-    // console.log("REFRESH MAPPINGS: Calling listStageProducts..."); // ADD LOG
     listStageProducts().then(data => {
-      // console.log("REFRESH MAPPINGS: listStageProducts returned:", data); // ADD LOG
       setMappings(data);
     }).catch(err => {
       console.error("REFRESH MAPPINGS: Error fetching mappings:", err);
@@ -65,7 +58,7 @@ export default function StageProductsPage() {
 
   useEffect(refreshMappings, []);
 
-  // Memoized data for display
+  // Memoized data for display — filter ONLY stages belonging to the selected crop
   const stagesForSelectedCrop = useMemo(
     () => allStages.filter((s) => s.crop === Number(selectedCropId)).sort((a, b) => a.order - b.order),
     [allStages, selectedCropId]
@@ -100,7 +93,14 @@ export default function StageProductsPage() {
 
   function openCreate() {
     // Ensure initial form values for stage and product are from the filtered lists
-    setForm({ ...EMPTY_FORM, stage: stagesForSelectedCrop[0]?.id || "", product: allProducts[0]?.id || "" });
+    setForm({ 
+      ...EMPTY_FORM, 
+      stage: stagesForSelectedCrop[0]?.id || "", 
+      product: allProducts[0]?.id || "",
+      dosage_amount: "",
+      dosage_unit: "",
+      application_notes: ""
+    });
     setError("");
     setCreating(true);
   }
@@ -160,7 +160,6 @@ export default function StageProductsPage() {
 
   // Use allCrops for the crop selection dropdown
   const cropsForDropdown = allCrops;
-  const cropName = allCrops.find((c) => c.id === Number(selectedCropId))?.name || "";
 
   return (
     <>

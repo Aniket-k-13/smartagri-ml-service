@@ -79,7 +79,10 @@ export async function listStages({ cropId } = {}) {
       : [...mockCropStages];
     return mockDelay(rows);
   }
-  const params = cropId ? { crop: cropId } : {};
+  const params = {};
+  if (cropId) {
+    params.crop = cropId;
+  }
   const { data } = await apiClient.get("/admin/stages/", { params });
   return ensurePaginatedArray(data.data);
 }

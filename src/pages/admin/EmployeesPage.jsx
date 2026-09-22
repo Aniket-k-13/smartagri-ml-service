@@ -39,11 +39,11 @@ export default function EmployeesPage() {
 
   function openEdit(emp) {
     setForm({
-      email: emp.email,
+      email: emp.email || emp.user?.email || "",
       password: "",
-      first_name: emp.first_name || "",
-      last_name: emp.last_name || "",
-      phone: emp.phone || "",
+      first_name: emp.first_name || emp.user?.first_name || "",
+      last_name: emp.last_name || emp.user?.last_name || "",
+      phone: emp.phone || emp.user?.phone_number || "",
       employee_code: emp.employee_code || "",
       designation: emp.designation || "",
       department: emp.department || "",
@@ -112,10 +112,10 @@ export default function EmployeesPage() {
                 {employees.map((e) => (
                   <tr key={e.id}>
                     <td>
-                      <strong>{e.first_name} {e.last_name}</strong>
-                      {e.phone && <div style={{ color: "var(--soil)", fontSize: 12 }}>{e.phone}</div>}
+                      <strong>{e.first_name || e.user?.first_name || "—"} {e.last_name || e.user?.last_name || ""}</strong>
+                      {(e.phone || e.user?.phone_number) && <div style={{ color: "var(--soil)", fontSize: 12 }}>{e.phone || e.user?.phone_number}</div>}
                     </td>
-                    <td style={{ fontSize: 13 }}>{e.email}</td>
+                    <td style={{ fontSize: 13 }}>{e.email || e.user?.email}</td>
                     <td className="mono">{e.employee_code || "—"}</td>
                     <td>{e.assigned_region || "—"}</td>
                     <td>{e.designation || "—"}</td>
