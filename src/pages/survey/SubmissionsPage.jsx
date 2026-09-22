@@ -4,6 +4,7 @@ import PageHeader from "../../components/PageHeader";
 import StatusBadge, { MockNotice } from "../../components/StatusBadge";
 import { MOCK_FLAGS } from "../../api/config";
 import { listSubmissions } from "../../api/surveysApi";
+import { useAuth } from "../../context/AuthContext";
 
 const FILTERS = [
   { value: "", label: "All", icon: "list" },
@@ -14,6 +15,8 @@ const FILTERS = [
 ];
 
 export default function SubmissionsPage() {
+  const { user } = useAuth();
+  const isAdmin = user?.role === "admin";
   const [statusFilter, setStatusFilter] = useState("");
   const [submissions, setSubmissions] = useState(null);
 
@@ -125,11 +128,11 @@ export default function SubmissionsPage() {
                     <td>
                       <Link
                         className="btn btn-sm btn-ghost"
-                        to={`/survey/${s.id}`}
+                        to={isAdmin ? `/admin/submissions/${s.id}` : `/survey/${s.id}`}
                         style={{ textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 5 }}
                       >
                         <span className="material-symbols-rounded" style={{ fontSize: 15 }}>visibility</span>
-                        Review
+                        {isAdmin ? "View" : "Review"}
                       </Link>
                     </td>
                   </tr>

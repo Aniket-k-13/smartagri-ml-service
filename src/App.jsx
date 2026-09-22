@@ -32,6 +32,8 @@ export default function App() {
               <Route path="products" element={<ProductsPage />} />
               <Route path="stage-products" element={<StageProductsPage />} />
               <Route path="employees" element={<EmployeesPage />} />
+              <Route path="submissions" element={<SubmissionsPage />} />
+              <Route path="submissions/:id" element={<SubmissionDetailPage />} />
             </Route>
           </Route>
 

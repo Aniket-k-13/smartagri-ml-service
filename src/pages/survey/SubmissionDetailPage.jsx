@@ -37,13 +37,21 @@ export default function SubmissionDetailPage() {
   if (!submission) {
     return (
       <>
-        <PageHeader title={`Submission #${id}`} subtitle={<Link to="/survey" style={{ color: "var(--soil)" }}>← Back to submissions</Link>} />
+        <PageHeader
+          title={`Submission #${id}`}
+          subtitle={
+            <Link to={user?.role === "admin" ? "/admin/submissions" : "/survey"} style={{ color: "var(--soil)" }}>
+              ← Back to submissions
+            </Link>
+          }
+        />
         <div className="page-body"><div className="loading-state">Loading submission…</div></div>
       </>
     );
   }
 
   const ml = submission.latest_ml_prediction;
+  const isAdmin = user?.role === "admin";
 
   return (
     <>
@@ -51,7 +59,9 @@ export default function SubmissionDetailPage() {
         title={`Submission #${id}`}
         subtitle={
           <>
-            <Link to="/survey" style={{ color: "var(--soil)" }}>← Back to submissions</Link>
+            <Link to={isAdmin ? "/admin/submissions" : "/survey"} style={{ color: "var(--soil)" }}>
+              ← Back to submissions
+            </Link>
             {" "}{MOCK_FLAGS.surveySubmissions && <MockNotice />}
           </>
         }
@@ -124,30 +134,50 @@ export default function SubmissionDetailPage() {
               </div>
             )}
 
-            {/* Officer notes + action buttons */}
+            {/* Officer notes + action buttons (read-only for admin) */}
             <div style={{ marginTop: 16 }}>
               <label style={{ display: "block", fontSize: 13, fontWeight: 600, marginBottom: 6 }}>
                 Officer notes
               </label>
-              <textarea
-                rows={4}
-                style={{ width: "100%", padding: 10, border: "1px solid var(--line)", borderRadius: 6, fontSize: 14, fontFamily: "inherit" }}
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                placeholder="Add findings or instructions for the farmer…"
-              />
+              {isAdmin ? (
+                <div style={{
+                  width: "100%", padding: 10, border: "1px solid var(--line)", borderRadius: 6,
+                  fontSize: 14, fontFamily: "inherit", background: "var(--sage)",
+                  color: "var(--canopy)", minHeight: 96, whiteSpace: "pre-wrap",
+                }}>
+                  {notes || "No notes from the officer yet."}
+                </div>
+              ) : (
+                <textarea
+                  rows={4}
+                  style={{ width: "100%", padding: 10, border: "1px solid var(--line)", borderRadius: 6, fontSize: 14, fontFamily: "inherit" }}
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  placeholder="Add findings or instructions for the farmer…"
+                />
+              )}
               <div className="row-actions" style={{ marginTop: 12, flexWrap: "wrap" }}>
-                <button className="btn btn-primary" disabled={saving} onClick={() => handleReview("reviewed")}>
-                  Approve
-                </button>
-                <button className="btn btn-ghost" disabled={saving} onClick={() => handleReview("rejected")}
-                  style={{ borderColor: "var(--rust)", color: "var(--rust)" }}>
-                  Flag / Reject
-                </button>
+                {!isAdmin && (
+                  <>
+                    <button className="btn btn-primary" disabled={saving} onClick={() => handleReview("reviewed")}>
+                      Approve
+                    </button>
+                    <button className="btn btn-ghost" disabled={saving} onClick={() => handleReview("rejected")}
+                      style={{ borderColor: "var(--rust)", color: "var(--rust)" }}>
+                      Flag / Reject
+                    </button>
+                  </>
+                )}
                 <button className="btn btn-ghost" onClick={() => setShowPdfPreview(true)}>
                   Generate Report PDF
                 </button>
               </div>
+              {isAdmin && (
+                <div style={{ marginTop: 8, fontSize: 12, color: "var(--soil)" }}>
+                  <span className="material-symbols-rounded" style={{ fontSize: 13, verticalAlign: "middle" }}>lock</span>
+                  {" "}Only Survey Officers can approve, flag, or reject. You can view and download the report.
+                </div>
+              )}
             </div>
           </div>
 

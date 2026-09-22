@@ -7,6 +7,7 @@ const ADMIN_LINKS = [
   { to: "/admin/stages", label: "Crop Stages", icon: "timeline" },
   { to: "/admin/products", label: "Products", icon: "inventory_2" },
   { to: "/admin/stage-products", label: "Stage → Product Map", icon: "account_tree" },
+  { to: "/admin/submissions", label: "Submissions", icon: "fact_check" },
   { to: "/admin/employees", label: "Survey Officers", icon: "badge" },
 ];
 
