@@ -32,8 +32,12 @@ import { mockSurveySubmissions, mockEmployees, mockDashboard } from "./mockData"
  *   successful_ml_predictions, failed_ml_predictions
  */
 
-// Utility to correctly extract the 'results' array from the paginated 'data' object
+// Utility to correctly extract an array from the API's 'data' payload.
+// Handles both shapes the backend returns:
+//   - paginated list endpoints (employees): { count, next, previous, results: [...] }
+//   - plain list endpoints (submissions):   [ {...}, {...} ]
 const ensurePaginatedArray = (paginatedData) => {
+  if (Array.isArray(paginatedData)) return paginatedData;
   if (paginatedData && Array.isArray(paginatedData.results)) {
     return paginatedData.results;
   }

@@ -20,8 +20,12 @@ import { mockCrops, mockCropStages, mockProducts, mockStageProducts, genId } fro
  *   GET             /api/crops/              (public list, returns {id,name,description})
  */
 
-// Utility to correctly extract the 'results' array from the paginated 'data' object
+// Utility to correctly extract an array from the API's 'data' payload.
+// Handles both shapes the backend returns:
+//   - paginated list endpoints: { count, next, previous, results: [...] }
+//   - plain list endpoints:      [ {...}, {...} ]
 const ensurePaginatedArray = (paginatedData) => {
+  if (Array.isArray(paginatedData)) return paginatedData;
   if (paginatedData && Array.isArray(paginatedData.results)) {
     return paginatedData.results;
   }
